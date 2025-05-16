@@ -11,10 +11,9 @@ var Version = "dev"
 var Revision = "HEAD"
 
 type GlobalOptions struct {
-	BaseBranch  string `help:"Base branch for comparison" default:"main"`
-	BaseDir     string `help:"Base directory" default:"."`
-	SearchPath  string `help:"Search path" default:"."`
-	BaseTargets string `help:"Base targets (JSON array)"`
+	BaseBranch string `help:"Base branch for comparison" default:"main"`
+	BaseDir    string `help:"Base directory" default:"."`
+	SearchPath string `help:"Search path" default:"."`
 }
 
 type CLI struct {

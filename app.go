@@ -151,12 +151,6 @@ func (app *App) listTargets() error {
 	baseBranch := app.CLI.BaseBranch
 	baseDir := app.CLI.BaseDir
 	searchPath := app.CLI.SearchPath
-	var baseTargets []string
-	if app.CLI.BaseTargets != "" {
-		if err := json.Unmarshal([]byte(app.CLI.BaseTargets), &baseTargets); err != nil {
-			return fmt.Errorf("failed to parse base targets: %w", err)
-		}
-	}
 
 	slog.Debug("baseBranch", "baseBranch", baseBranch)
 	slog.Debug("baseDir", "baseDir", baseDir)
@@ -188,11 +182,6 @@ func (app *App) listTargets() error {
 				break
 			}
 		}
-	}
-
-	// Add base targets if provided
-	for _, baseTarget := range baseTargets {
-		targets.Add(filepath.Join(baseDir, searchPath, baseTarget))
 	}
 
 	jsonOutput, err := json.Marshal(targets.ToSlice())
