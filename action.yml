@@ -1,0 +1,62 @@
+name: tftargets
+description: Install tftargets
+inputs:
+  version:
+    description: "A version to install tftargets"
+    default: latest
+    required: false
+  version-file:
+    description: "A file containing the version to install"
+    required: false
+  github-token:
+    description: "GitHub token for API requests"
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        github_token: ${{ inputs.github-token }}
+      run: |
+        set -e
+        VERSION="${{ inputs.version }}"
+        if [ -n "${{ inputs.version-file }}" ]; then
+          VERSION="v$(cat ${{ inputs.version-file }})"
+        fi
+        
+        # Detect architecture
+        ARCH=$(uname -m)
+        
+        # Map architecture to tftargets naming convention
+        case "${ARCH}" in
+          x86_64|amd64)  ARCH_NAME="x86_64";;
+          i386|i686)     ARCH_NAME="i386";;
+          arm64|aarch64) ARCH_NAME="arm64";;
+          *)             echo "Unsupported architecture: ${ARCH}" && exit 1;;
+        esac
+        
+        BINARY_NAME="tftargets_Linux_${ARCH_NAME}.tar.gz"
+        
+        api_request_args=("-sS")
+        if [[ -n "$github_token" ]]; then
+          api_request_args=("${api_request_args[@]}" -H "authorization: token $github_token")
+        fi
+        
+        if [ "${VERSION}" = "latest" ]; then
+          DOWNLOAD_URL=$(curl "${api_request_args[@]}" https://api.github.com/repos/takaishi/tftargets/releases | jq -r "[.[] | select(.prerelease==false)][0].assets[].browser_download_url | select(match(\"${BINARY_NAME}\"))")
+        else
+          DOWNLOAD_URL=https://github.com/takaishi/tftargets/releases/download/${VERSION}/${BINARY_NAME}
+        fi
+        
+        echo "Downloading tftargets for Linux_${ARCH_NAME} from ${DOWNLOAD_URL}"
+        
+        cd /tmp
+        curl -sfL ${DOWNLOAD_URL} | tar xzvf -
+        
+        # Create directory if it doesn't exist
+        mkdir -p ${RUNNER_TOOL_CACHE}/tftargets
+        
+        # Install the binary
+        sudo install -D tftargets ${RUNNER_TOOL_CACHE}/tftargets/tftargets
+        echo "${RUNNER_TOOL_CACHE}/tftargets" >> $GITHUB_PATH
