@@ -195,22 +195,6 @@ func (app *App) listTargets() error {
 		targets.Add(filepath.Join(baseDir, searchPath, baseTarget))
 	}
 
-	slog.Debug("targets", "targets", targets.ToSlice())
-
-	// Generate JSON output
-	jsonData, err := json.Marshal(targets.ToSlice())
-	if err != nil {
-		return err
-	}
-
-	slog.Debug("targets", "targets", jsonData)
-
-	terragruntFlags := buildTerragruntFlags(targets.ToSlice())
-	slog.Debug("terragrunt_flags", "terragrunt_flags", terragruntFlags)
-	for _, path := range targets.ToSlice() {
-		slog.Debug("path", "path", path)
-	}
-
 	jsonOutput, err := json.Marshal(targets.ToSlice())
 	if err != nil {
 		return fmt.Errorf("failed to marshal paths: %w", err)
@@ -218,14 +202,6 @@ func (app *App) listTargets() error {
 	fmt.Printf("%s", jsonOutput)
 
 	return nil
-}
-
-func buildTerragruntFlags(targets []string) string {
-	var flags []string
-	for _, target := range targets {
-		flags = append(flags, fmt.Sprintf("--terragrunt-include-dir=%s", target))
-	}
-	return strings.Join(flags, " ")
 }
 
 func getLogLevel() slog.Level {
