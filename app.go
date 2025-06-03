@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/terraform-config-inspect/tfconfig"
 )
 
@@ -111,9 +111,8 @@ func getModuleCalls(dir string) (Set[string], error) {
 }
 
 func findTargetCandidates(searchPath string) ([]string, error) {
-	searchPattern := regexp.MustCompile(`\.tf$`)
-	searchText := `backend "s3"`
 	directories := make(map[string]struct{})
+	parser := hclparse.NewParser()
 
 	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -122,12 +121,13 @@ func findTargetCandidates(searchPath string) ([]string, error) {
 		if info.IsDir() {
 			return nil
 		}
-		if searchPattern.MatchString(info.Name()) {
-			content, err := ioutil.ReadFile(path)
-			if err != nil {
-				return err
+		if strings.HasSuffix(info.Name(), ".tf") {
+			file, diags := parser.ParseHCLFile(path)
+			if diags.HasErrors() {
+				return nil // Skip files with parse errors
 			}
-			if strings.Contains(string(content), searchText) {
+
+			if hasTerraformBlock(file.Body) {
 				directories[filepath.Dir(path)] = struct{}{}
 			}
 		}
@@ -145,6 +145,24 @@ func findTargetCandidates(searchPath string) ([]string, error) {
 		}
 	}
 	return result, nil
+}
+
+func hasTerraformBlock(body hcl.Body) bool {
+	content, _, _ := body.PartialContent(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{
+			{
+				Type:       "terraform",
+				LabelNames: nil,
+			},
+		},
+	})
+
+	for _, block := range content.Blocks {
+		if block.Type == "terraform" {
+			return true
+		}
+	}
+	return false
 }
 
 func (app *App) listTargets() error {
