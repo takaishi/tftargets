@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.0.4](https://github.com/takaishi/tftargets/compare/v0.0.3...v0.0.4) - 2025-06-17
+- feat: add base-commit-sha flag by @takaishi in https://github.com/takaishi/tftargets/pull/5
+
 ## [v0.0.3](https://github.com/takaishi/tftargets/compare/v0.0.2...v0.0.3) - 2025-06-03
 - chore: check file includes terraform block in directory by @takaishi in https://github.com/takaishi/tftargets/pull/2
 - doc: update by @takaishi in https://github.com/takaishi/tftargets/pull/4
