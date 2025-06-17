@@ -66,14 +66,21 @@ func Contains(slice []string, item string) bool {
 	return false
 }
 
-func getChangedFilesFromGit(baseDir, baseBranch string) ([]string, error) {
+func getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha string) ([]string, error) {
 	cmd := exec.Command("git", "fetch", "--depth=1", "origin")
 	cmd.Dir = baseDir
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("git fetch failed: %w", err)
 	}
 
-	cmd = exec.Command("git", "diff", "--name-only", fmt.Sprintf("origin/%s", baseBranch))
+	var diffTarget string
+	if baseCommitSha != "" {
+		diffTarget = baseCommitSha
+	} else {
+		diffTarget = fmt.Sprintf("origin/%s", baseBranch)
+	}
+
+	cmd = exec.Command("git", "diff", "--name-only", diffTarget)
 	cmd.Dir = baseDir
 	output, err := cmd.Output()
 	if err != nil {
@@ -89,6 +96,7 @@ func getChangedFilesFromGit(baseDir, baseBranch string) ([]string, error) {
 	}
 	return result, nil
 }
+
 
 func getModuleCalls(dir string) (Set[string], error) {
 	module, diags := tfconfig.LoadModule(dir)
@@ -167,10 +175,12 @@ func hasTerraformBlock(body hcl.Body) bool {
 
 func (app *App) listTargets() error {
 	baseBranch := app.CLI.BaseBranch
+	baseCommitSha := app.CLI.BaseCommitSha
 	baseDir := app.CLI.BaseDir
 	searchPath := app.CLI.SearchPath
 
 	slog.Debug("baseBranch", "baseBranch", baseBranch)
+	slog.Debug("baseCommitSha", "baseCommitSha", baseCommitSha)
 	slog.Debug("baseDir", "baseDir", baseDir)
 	slog.Debug("searchPath", "searchPath", searchPath)
 
@@ -179,7 +189,7 @@ func (app *App) listTargets() error {
 		return err
 	}
 
-	changes, err := getChangedFilesFromGit(baseDir, baseBranch)
+	changes, err := getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha)
 	if err != nil {
 		return err
 	}
