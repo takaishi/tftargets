@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.0.5](https://github.com/takaishi/tftargets/compare/v0.0.4...v0.0.5) - 2025-08-04
+- fix: improve module directory handling in target listing by @takaishi in https://github.com/takaishi/tftargets/pull/7
+
 ## [v0.0.4](https://github.com/takaishi/tftargets/compare/v0.0.3...v0.0.4) - 2025-06-17
 - feat: add base-commit-sha flag by @takaishi in https://github.com/takaishi/tftargets/pull/5
 
