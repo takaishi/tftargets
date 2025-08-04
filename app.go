@@ -97,7 +97,6 @@ func getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha string) ([]string
 	return result, nil
 }
 
-
 func getModuleCalls(dir string) (Set[string], error) {
 	module, diags := tfconfig.LoadModule(dir)
 	if diags.HasErrors() {
@@ -195,22 +194,32 @@ func (app *App) listTargets() error {
 	}
 	slog.Debug("getChangedFilesFromGit", "changes", changes)
 
-	targets := make(Set[string])
+	// First, collect all module directories for each candidate
+	candidateModules := make(map[string]Set[string])
 	for _, candidate := range targetCandidates {
 		calls, err := getModuleCalls(candidate)
 		if err != nil {
 			return err
 		}
 		calls.Add(candidate)
+		candidateModules[candidate] = calls
+	}
+	slog.Debug("candidateModules", "candidateModules", candidateModules)
 
-		for _, change := range changes {
-			dir := filepath.Dir(change)
-			if calls.Contains(dir) {
-				targets.Add(candidate)
-				break
+	// Then check if any changed files are within module directories
+	targets := make(Set[string])
+	for _, change := range changes {
+		for candidate, modules := range candidateModules {
+			for module := range modules {
+				// Check if the changed file is within this module directory or its subdirectories
+				if strings.HasPrefix(change, module+string(filepath.Separator)) || change == module {
+					targets.Add(candidate)
+					break
+				}
 			}
 		}
 	}
+	slog.Debug("targets", "targets", targets)
 
 	jsonOutput, err := json.Marshal(targets.ToSlice())
 	if err != nil {
