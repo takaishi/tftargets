@@ -2,7 +2,7 @@ name: test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -16,4 +16,7 @@ jobs:
         with:
           fetch-depth: 0
       - run: make build
+      - run: make depsdev
       - run: make test
+      - run: make check-credits
+      - run: make check-licenses
