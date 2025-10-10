@@ -5,7 +5,7 @@ go 1.22.3
 require (
 	github.com/alecthomas/kong v0.9.0
 	github.com/hashicorp/hcl/v2 v2.20.1
-	github.com/hashicorp/terraform-config-inspect v0.0.0-20250515145901-f4c50e64fd6d
+	github.com/hashicorp/terraform-config-inspect v0.0.0-20250828155816-225c06ed5fd9
 )
 
 require (
