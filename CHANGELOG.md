@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.0.7](https://github.com/takaishi/tftargets/compare/v0.0.6...v0.0.7) - 2025-10-15
+- chore: support non-local modules by @takaishi in https://github.com/takaishi/tftargets/pull/24
+
 ## [v0.0.6](https://github.com/takaishi/tftargets/compare/v0.0.5...v0.0.6) - 2025-08-24
 - chore: add FUNDING.yml by @takaishi in https://github.com/takaishi/tftargets/pull/12
 - chore(deps): update dependency go to v1.25.0 by @renovate[bot] in https://github.com/takaishi/tftargets/pull/10
