@@ -8,11 +8,27 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/terraform-config-inspect/tfconfig"
+)
+
+// ModuleSourceType represents the type of module source
+type ModuleSourceType string
+
+const (
+	ModuleSourceTypeLocal     ModuleSourceType = "local"
+	ModuleSourceTypeRegistry  ModuleSourceType = "registry"
+	ModuleSourceTypeGit       ModuleSourceType = "git"
+	ModuleSourceTypeGitHub    ModuleSourceType = "github"
+	ModuleSourceTypeHTTP      ModuleSourceType = "http"
+	ModuleSourceTypeS3        ModuleSourceType = "s3"
+	ModuleSourceTypeGCS       ModuleSourceType = "gcs"
+	ModuleSourceTypeMercurial ModuleSourceType = "mercurial"
+	ModuleSourceTypeUnknown   ModuleSourceType = "unknown"
 )
 
 type App struct {
@@ -66,6 +82,60 @@ func Contains(slice []string, item string) bool {
 	return false
 }
 
+// DetectModuleSourceType detects the type of module source based on the source string
+func DetectModuleSourceType(source string) ModuleSourceType {
+	// Local path (starts with ./ or ../)
+	if strings.HasPrefix(source, "./") || strings.HasPrefix(source, "../") {
+		return ModuleSourceTypeLocal
+	}
+
+	// Git with explicit protocol
+	if strings.HasPrefix(source, "git::") {
+		return ModuleSourceTypeGit
+	}
+
+	// Mercurial with explicit protocol
+	if strings.HasPrefix(source, "hg::") {
+		return ModuleSourceTypeMercurial
+	}
+
+	// S3 bucket
+	if strings.HasPrefix(source, "s3::") {
+		return ModuleSourceTypeS3
+	}
+
+	// GCS bucket
+	if strings.HasPrefix(source, "gcs::") {
+		return ModuleSourceTypeGCS
+	}
+
+	// HTTP/HTTPS URL
+	if strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://") {
+		return ModuleSourceTypeHTTP
+	}
+
+	// GitHub repository (github.com/...)
+	if strings.HasPrefix(source, "github.com/") {
+		return ModuleSourceTypeGitHub
+	}
+
+	// Git repository (git@...)
+	if strings.HasPrefix(source, "git@") {
+		return ModuleSourceTypeGit
+	}
+
+	// Terraform Registry (namespace/name/provider format)
+	// Pattern: alphanumeric characters, hyphens, underscores, and forward slashes
+	// Also supports subdirectories with // (e.g., terraform-aws-modules/iam/aws//modules/iam-account)
+	registryPattern := regexp.MustCompile(`^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+(//.*)?$`)
+	if registryPattern.MatchString(source) {
+		return ModuleSourceTypeRegistry
+	}
+
+	// If none of the above patterns match, it's unknown
+	return ModuleSourceTypeUnknown
+}
+
 func getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha string) ([]string, error) {
 	cmd := exec.Command("git", "fetch", "--depth=1", "origin")
 	cmd.Dir = baseDir
@@ -105,14 +175,26 @@ func getModuleCalls(dir string) (Set[string], error) {
 
 	calls := make(Set[string])
 	for _, mc := range module.ModuleCalls {
-		dependencies, err := getModuleCalls(filepath.Join(dir, mc.Source))
-		if err != nil {
-			return nil, err
+		sourceType := DetectModuleSourceType(mc.Source)
+		slog.Debug("Module source detected",
+			"module", mc.Name,
+			"source", mc.Source,
+			"type", sourceType)
+
+		// Only process local modules recursively
+		if sourceType == ModuleSourceTypeLocal {
+			dependencies, err := getModuleCalls(filepath.Join(dir, mc.Source))
+			if err != nil {
+				return nil, err
+			}
+			for _, dependency := range dependencies.ToSlice() {
+				calls.Add(dependency)
+			}
+			calls.Add(filepath.Join(dir, mc.Source))
+		} else {
+			// For non-local modules, just add the current directory
+			calls.Add(dir)
 		}
-		for _, dependency := range dependencies.ToSlice() {
-			calls.Add(dependency)
-		}
-		calls.Add(filepath.Join(dir, mc.Source))
 	}
 	return calls, nil
 }
