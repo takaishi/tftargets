@@ -1,6 +1,6 @@
 module github.com/takaishi/tftargets
 
-go 1.22.3
+go 1.25.2
 
 require (
 	github.com/alecthomas/kong v0.9.0

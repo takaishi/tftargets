@@ -2,7 +2,7 @@ name: test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -11,9 +11,12 @@ jobs:
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: 1.25
+          go-version-file: go.mod
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - run: make build
+      - run: make depsdev
       - run: make test
+      - run: make check-credits
+      - run: make check-licenses
