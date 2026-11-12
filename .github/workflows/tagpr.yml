@@ -23,6 +23,6 @@ jobs:
       - id: run-tagpr
         uses: Songmu/tagpr@v1
         with:
-          version: v1.4.3
+          version: v1.22.0
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
