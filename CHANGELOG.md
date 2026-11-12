@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.0.8](https://github.com/takaishi/tftargets/compare/v0.0.7...v0.0.8) - 2026-11-12
+
+- fix: treat files read through path.module as dependencies by @takaishi in https://github.com/takaishi/tftargets/pull/35
+- fix: make the tagpr workflow pass on main by @takaishi in https://github.com/takaishi/tftargets/pull/37
+
 ## [v0.0.7](https://github.com/takaishi/tftargets/compare/v0.0.6...v0.0.7) - 2025-10-15
 - chore: support non-local modules by @takaishi in https://github.com/takaishi/tftargets/pull/24
 
