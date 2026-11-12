@@ -254,6 +254,52 @@ func hasTerraformBlock(body hcl.Body) bool {
 	return false
 }
 
+// findTargets returns the candidates that are affected by the changed files.
+// A candidate is affected when a changed file is in the candidate directory,
+// in a local module it calls (transitively), or is a file that one of those
+// modules reads through path.module or path.root.
+func findTargets(targetCandidates []string, changes []string) (Set[string], error) {
+	// First, collect all module directories and file dependencies for each candidate
+	candidateModules := make(map[string]Set[string])
+	for _, candidate := range targetCandidates {
+		calls, err := getModuleCalls(candidate)
+		if err != nil {
+			return nil, err
+		}
+		calls.Add(candidate)
+
+		dependencies := make(Set[string])
+		for module := range calls {
+			dependencies.Add(module)
+			files, err := getFileDependencies(module, candidate)
+			if err != nil {
+				return nil, err
+			}
+			for file := range files {
+				dependencies.Add(file)
+			}
+		}
+		candidateModules[candidate] = dependencies
+	}
+	slog.Debug("candidateModules", "candidateModules", candidateModules)
+
+	// Then check if any changed files are within module directories or are file dependencies
+	targets := make(Set[string])
+	for _, change := range changes {
+		for candidate, modules := range candidateModules {
+			for module := range modules {
+				// Check if the changed file is this path or within this directory
+				if strings.HasPrefix(change, module+string(filepath.Separator)) || change == module {
+					targets.Add(candidate)
+					break
+				}
+			}
+		}
+	}
+	slog.Debug("targets", "targets", targets)
+	return targets, nil
+}
+
 func (app *App) listTargets() error {
 	baseBranch := app.CLI.BaseBranch
 	baseCommitSha := app.CLI.BaseCommitSha
@@ -276,32 +322,10 @@ func (app *App) listTargets() error {
 	}
 	slog.Debug("getChangedFilesFromGit", "changes", changes)
 
-	// First, collect all module directories for each candidate
-	candidateModules := make(map[string]Set[string])
-	for _, candidate := range targetCandidates {
-		calls, err := getModuleCalls(candidate)
-		if err != nil {
-			return err
-		}
-		calls.Add(candidate)
-		candidateModules[candidate] = calls
+	targets, err := findTargets(targetCandidates, changes)
+	if err != nil {
+		return err
 	}
-	slog.Debug("candidateModules", "candidateModules", candidateModules)
-
-	// Then check if any changed files are within module directories
-	targets := make(Set[string])
-	for _, change := range changes {
-		for candidate, modules := range candidateModules {
-			for module := range modules {
-				// Check if the changed file is within this module directory or its subdirectories
-				if strings.HasPrefix(change, module+string(filepath.Separator)) || change == module {
-					targets.Add(candidate)
-					break
-				}
-			}
-		}
-	}
-	slog.Debug("targets", "targets", targets)
 
 	jsonOutput, err := json.Marshal(targets.ToSlice())
 	if err != nil {
