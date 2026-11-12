@@ -13,6 +13,22 @@ A tool that analyzes Terraform configurations and identifies directories that ne
 
 This is particularly useful in CI/CD pipelines where you want to run Terraform only on changed modules rather than all modules.
 
+### Files read by modules
+
+A directory is also a target when a file that it, or a local module it calls, reads through a file function changes, even if the file is outside the module directory:
+
+```hcl
+locals {
+  config = templatefile("${path.module}/../shared/config.tpl", {})
+}
+```
+
+- The functions are `file`, `fileexists`, `fileset`, `templatefile`, `filebase64`, `filemd5`, `filesha1`, `filesha256`, `filesha512`, `filebase64sha256` and `filebase64sha512`.
+- Only paths that start with `path.module` or `path.root` are followed. `path.root` is the directory of the target.
+- For `fileset`, any change under the given directory counts, regardless of the pattern.
+- When a path is not static after some point (for example `"${path.module}/templates/${var.env}/user_data.sh"`), any change under the directory of the static part (`templates/`) counts.
+- Paths that do not start with `path.module` or `path.root` (for example `file(var.policy_path)` or `file("policy.json")`) are not followed. Set `LOG_LEVEL=DEBUG` to see which references are skipped.
+
 ## Install
 
 ### Go Install
