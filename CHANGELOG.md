@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.10](https://github.com/takaishi/tftargets/compare/v0.0.9...v0.0.10) - 2026-11-13
+
+- fix: read changed paths verbatim and add --include-changed-dirs by @takaishi in https://github.com/takaishi/tftargets/pull/41
+
 ## [v0.0.9](https://github.com/takaishi/tftargets/compare/v0.0.8...v0.0.9) - 2026-11-13
 
 - fix: skip git fetch when the base commit is already local by @takaishi in https://github.com/takaishi/tftargets/pull/39
