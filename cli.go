@@ -15,6 +15,8 @@ type GlobalOptions struct {
 	BaseCommitSha string `help:"Base commit SHA for comparison" xor:"base"`
 	BaseDir       string `help:"Base directory" default:"."`
 	SearchPath    string `help:"Search path" default:"."`
+
+	IncludeChangedDirs bool `help:"Also output directories that contain a changed .tf file, even without a terraform block"`
 }
 
 type CLI struct {
