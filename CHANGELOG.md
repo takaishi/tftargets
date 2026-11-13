@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.9](https://github.com/takaishi/tftargets/compare/v0.0.8...v0.0.9) - 2026-11-13
+
+- fix: skip git fetch when the base commit is already local by @takaishi in https://github.com/takaishi/tftargets/pull/39
+
 ## [v0.0.8](https://github.com/takaishi/tftargets/compare/v0.0.7...v0.0.8) - 2026-11-12
 
 - fix: treat files read through path.module as dependencies by @takaishi in https://github.com/takaishi/tftargets/pull/35
