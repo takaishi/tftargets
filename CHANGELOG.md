@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.11](https://github.com/takaishi/tftargets/compare/v0.0.10...v0.0.11) - 2026-11-13
+
+- fix: skip only paths with a .terragrunt-cache element by @takaishi in https://github.com/takaishi/tftargets/pull/43
+
 ## [v0.0.10](https://github.com/takaishi/tftargets/compare/v0.0.9...v0.0.10) - 2026-11-13
 
 - fix: read changed paths verbatim and add --include-changed-dirs by @takaishi in https://github.com/takaishi/tftargets/pull/41
