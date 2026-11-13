@@ -56,7 +56,8 @@ tftargets --base-branch main --base-dir . --search-path .
 ```
 
 #### Flags
-- `--base-branch`: Base branch for Git comparison (default: "main")
+- `--base-branch`: Base branch for Git comparison (default: "main"). `origin` is fetched to update `origin/<branch>`.
+- `--base-commit-sha`: Base commit for Git comparison, instead of `--base-branch`. If the commit is already in the local repository, `git fetch` is skipped, so no credentials are needed and a full clone does not become shallow. Otherwise `origin` is fetched as with `--base-branch`. In a partial clone (for example `--filter=tree:0`), Git may still download missing objects from `origin` on demand.
 - `--base-dir`: Base directory for the repository (default: ".")
 - `--search-path`: Path to search for Terraform files (default: ".")
 - `--version`: Show version information

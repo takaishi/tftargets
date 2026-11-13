@@ -137,10 +137,17 @@ func DetectModuleSourceType(source string) ModuleSourceType {
 }
 
 func getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha string) ([]string, error) {
-	cmd := exec.Command("git", "fetch", "--depth=1", "origin")
-	cmd.Dir = baseDir
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("git fetch failed: %w", err)
+	// A base commit that is already in the local repository needs no fetch.
+	// Skipping it avoids requiring credentials and keeps a full clone from
+	// becoming shallow.
+	if baseCommitSha != "" && commitExists(baseDir, baseCommitSha) {
+		slog.Debug("base commit exists locally; skipping git fetch", "baseCommitSha", baseCommitSha)
+	} else {
+		cmd := exec.Command("git", "fetch", "--depth=1", "origin")
+		cmd.Dir = baseDir
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("git fetch failed: %w", err)
+		}
 	}
 
 	var diffTarget string
@@ -150,7 +157,7 @@ func getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha string) ([]string
 		diffTarget = fmt.Sprintf("origin/%s", baseBranch)
 	}
 
-	cmd = exec.Command("git", "diff", "--name-only", diffTarget)
+	cmd := exec.Command("git", "diff", "--name-only", diffTarget)
 	cmd.Dir = baseDir
 	output, err := cmd.Output()
 	if err != nil {
@@ -165,6 +172,13 @@ func getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha string) ([]string
 		}
 	}
 	return result, nil
+}
+
+// commitExists reports whether rev resolves to a commit in the repository at dir.
+func commitExists(dir, rev string) bool {
+	cmd := exec.Command("git", "cat-file", "-e", rev+"^{commit}")
+	cmd.Dir = dir
+	return cmd.Run() == nil
 }
 
 func getModuleCalls(dir string) (Set[string], error) {
