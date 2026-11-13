@@ -13,6 +13,10 @@ A tool that analyzes Terraform configurations and identifies directories that ne
 
 This is particularly useful in CI/CD pipelines where you want to run Terraform only on changed modules rather than all modules.
 
+### Changed file paths
+
+Changed files are read with `git diff --name-only -z --no-renames`, so paths that contain spaces or non-ASCII characters are handled as is, and a renamed or moved file counts as a change in both its old and new directories.
+
 ### Files read by modules
 
 A directory is also a target when a file that it, or a local module it calls, reads through a file function changes, even if the file is outside the module directory:
@@ -60,6 +64,7 @@ tftargets --base-branch main --base-dir . --search-path .
 - `--base-commit-sha`: Base commit for Git comparison, instead of `--base-branch`. If the commit is already in the local repository, `git fetch` is skipped, so no credentials are needed and a full clone does not become shallow. Otherwise `origin` is fetched as with `--base-branch`. In a partial clone (for example `--filter=tree:0`), Git may still download missing objects from `origin` on demand.
 - `--base-dir`: Base directory for the repository (default: ".")
 - `--search-path`: Path to search for Terraform files (default: ".")
+- `--include-changed-dirs`: Also output each directory under `--search-path` that contains a changed `.tf` file, even if it has no `terraform` block (for example a module that only has `variable` and `resource` blocks). Directories that no longer exist are not output. Without this flag, only directories with a `terraform` block are output. This is useful for tools that check every changed directory, such as linters, but not for running `terraform plan`.
 - `--version`: Show version information
 
 ### Environment Variables

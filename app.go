@@ -157,14 +157,18 @@ func getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha string) ([]string
 		diffTarget = fmt.Sprintf("origin/%s", baseBranch)
 	}
 
-	cmd := exec.Command("git", "diff", "--name-only", diffTarget)
+	// -z prints paths verbatim, separated by NUL. Without it, Git quotes paths
+	// that contain non-ASCII or control characters (core.quotePath).
+	// --no-renames lists both the old and the new path of a renamed file, so
+	// a file moved out of a directory still counts as a change there.
+	cmd := exec.Command("git", "diff", "--name-only", "-z", "--no-renames", diffTarget)
 	cmd.Dir = baseDir
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git diff failed: %w", err)
 	}
 
-	files := strings.Split(string(output), "\n")
+	files := strings.Split(string(output), "\x00")
 	var result []string
 	for _, file := range files {
 		if file != "" {
@@ -314,29 +318,61 @@ func findTargets(targetCandidates []string, changes []string) (Set[string], erro
 	return targets, nil
 }
 
-func (app *App) listTargets() error {
-	baseBranch := app.CLI.BaseBranch
-	baseCommitSha := app.CLI.BaseCommitSha
-	baseDir := app.CLI.BaseDir
-	searchPath := app.CLI.SearchPath
+// findChangedDirs returns the directories under searchRoot that contain a
+// changed .tf file and still exist, whether or not they have a terraform block.
+func findChangedDirs(searchRoot string, changes []string) Set[string] {
+	dirs := make(Set[string])
+	for _, change := range changes {
+		if !strings.HasSuffix(change, ".tf") {
+			continue
+		}
+		dir := filepath.Dir(change)
+		if strings.Contains(dir, ".terragrunt-cache") {
+			continue
+		}
+		rel, err := filepath.Rel(searchRoot, dir)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			continue
+		}
+		dirs.Add(dir)
+	}
+	return dirs
+}
 
-	slog.Debug("baseBranch", "baseBranch", baseBranch)
-	slog.Debug("baseCommitSha", "baseCommitSha", baseCommitSha)
-	slog.Debug("baseDir", "baseDir", baseDir)
-	slog.Debug("searchPath", "searchPath", searchPath)
+func collectTargets(opts *GlobalOptions) (Set[string], error) {
+	slog.Debug("options", "baseBranch", opts.BaseBranch, "baseCommitSha", opts.BaseCommitSha,
+		"baseDir", opts.BaseDir, "searchPath", opts.SearchPath, "includeChangedDirs", opts.IncludeChangedDirs)
 
-	targetCandidates, err := findTargetCandidates(filepath.Join(baseDir, searchPath))
+	searchRoot := filepath.Join(opts.BaseDir, opts.SearchPath)
+	targetCandidates, err := findTargetCandidates(searchRoot)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	changes, err := getChangedFilesFromGit(baseDir, baseBranch, baseCommitSha)
+	changes, err := getChangedFilesFromGit(opts.BaseDir, opts.BaseBranch, opts.BaseCommitSha)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	slog.Debug("getChangedFilesFromGit", "changes", changes)
 
 	targets, err := findTargets(targetCandidates, changes)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts.IncludeChangedDirs {
+		for dir := range findChangedDirs(searchRoot, changes) {
+			targets.Add(dir)
+		}
+	}
+	return targets, nil
+}
+
+func (app *App) listTargets() error {
+	targets, err := collectTargets(app.CLI.GlobalOptions)
 	if err != nil {
 		return err
 	}
