@@ -247,11 +247,24 @@ func findTargetCandidates(searchPath string) ([]string, error) {
 
 	var result []string
 	for dir := range directories {
-		if !strings.Contains(dir, ".terragrunt-cache") {
+		if !inTerragruntCache(dir) {
 			result = append(result, dir)
 		}
 	}
 	return result, nil
+}
+
+// inTerragruntCache reports whether path is in a Terragrunt cache, that is,
+// whether one of its elements is exactly ".terragrunt-cache". A directory
+// whose name merely contains that string, such as "foo.terragrunt-cache",
+// is not a cache.
+func inTerragruntCache(path string) bool {
+	for _, elem := range strings.Split(filepath.Clean(path), string(filepath.Separator)) {
+		if elem == ".terragrunt-cache" {
+			return true
+		}
+	}
+	return false
 }
 
 func hasTerraformBlock(body hcl.Body) bool {
@@ -327,7 +340,7 @@ func findChangedDirs(searchRoot string, changes []string) Set[string] {
 			continue
 		}
 		dir := filepath.Dir(change)
-		if strings.Contains(dir, ".terragrunt-cache") {
+		if inTerragruntCache(dir) {
 			continue
 		}
 		rel, err := filepath.Rel(searchRoot, dir)

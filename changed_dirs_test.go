@@ -175,3 +175,101 @@ func TestGetChangedFilesFromGitDoesNotQuotePaths(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func TestInTerragruntCache(t *testing.T) {
+	abs := string(filepath.Separator) + filepath.Join("repo", "a", ".terragrunt-cache", "x")
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"a/.terragrunt-cache/x", true},
+		{".terragrunt-cache/x", true},
+		{"./a/.terragrunt-cache", true},
+		{abs, true},
+		{"a/example.terragrunt-cache-prod", false},
+		{"a/foo.terragrunt-cache", false},
+		{"a/.terragrunt-cache-old", false},
+		{"a/x.terragrunt-cache/b", false},
+	}
+	for _, tt := range tests {
+		path := filepath.FromSlash(tt.path)
+		if got := inTerragruntCache(path); got != tt.want {
+			t.Errorf("inTerragruntCache(%q) = %v, want %v", path, got, tt.want)
+		}
+	}
+}
+
+func TestCollectTargetsTerragruntCache(t *testing.T) {
+	tests := []struct {
+		name string
+		// file is added in the base commit and changed afterwards.
+		file    string
+		content string
+		// want is the result with --include-changed-dirs.
+		want []string
+		// wantDefault is the result without it.
+		wantDefault []string
+	}{
+		{
+			name:        "directory name containing .terragrunt-cache with a terraform block",
+			file:        "example.terragrunt-cache-prod/main.tf",
+			content:     "terraform {}\n",
+			want:        []string{"example.terragrunt-cache-prod"},
+			wantDefault: []string{"example.terragrunt-cache-prod"},
+		},
+		{
+			name:        "directory name ending with .terragrunt-cache without a terraform block",
+			file:        "foo.terragrunt-cache/main.tf",
+			content:     "variable \"name\" {}\n",
+			want:        []string{"foo.terragrunt-cache"},
+			wantDefault: []string{},
+		},
+		{
+			// The change is inside root, so root itself is a target, but the
+			// cache directory is not.
+			name:        "real Terragrunt cache",
+			file:        "root/.terragrunt-cache/abc/main.tf",
+			content:     "terraform {}\n",
+			want:        []string{"root"},
+			wantDefault: []string{"root"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, include := range []bool{true, false} {
+				dir, _ := newTerraformRepo(t)
+				writeFile(t, dir, tt.file, tt.content)
+				runGit(t, dir, "add", ".")
+				runGit(t, dir, "commit", "-m", "add "+tt.file)
+				sha := runGit(t, dir, "rev-parse", "HEAD")
+				writeFile(t, dir, tt.file, tt.content+"\n# changed\n")
+
+				got, err := collectTargets(&GlobalOptions{
+					BaseCommitSha:      sha,
+					BaseDir:            dir,
+					SearchPath:         ".",
+					IncludeChangedDirs: include,
+				})
+				if err != nil {
+					t.Fatalf("collectTargets: %v", err)
+				}
+
+				want := tt.wantDefault
+				if include {
+					want = tt.want
+				}
+				var wantPaths []string
+				for _, w := range want {
+					wantPaths = append(wantPaths, filepath.Join(dir, filepath.FromSlash(w)))
+				}
+				gotPaths := got.ToSlice()
+				slices.Sort(gotPaths)
+				slices.Sort(wantPaths)
+				if !slices.Equal(gotPaths, wantPaths) {
+					t.Errorf("include-changed-dirs=%v: got %v, want %v", include, gotPaths, wantPaths)
+				}
+			}
+		})
+	}
+}
